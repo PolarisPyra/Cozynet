@@ -98,7 +98,7 @@ if (NODE_ENV === "production") {
 
 server
 	.route("/api", UnprotectedRoutes)
-	.use(jwt({ secret: JWT_SECRET!, cookie: "auth_token" }))
+	.use(jwt({ secret: JWT_SECRET!, cookie: "auth_token", alg: "HS256" }))
 	.use(jwtPayloadMiddleware())
 	.route("/api", Routes)
 	.use("/public/*", serveStatic({ root: "./public" }))
