@@ -86,7 +86,6 @@
 		"three": "^0.186.1",
 		"vaul": "^1.1.2",
 		"victory": "^37.3.6",
-		"vite-tsconfig-paths": "6.1.1",
 		"zod": "4.6.7"
 	},
 	"devDependencies": {

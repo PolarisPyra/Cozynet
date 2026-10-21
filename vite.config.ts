@@ -2,7 +2,6 @@ import { webUpdateNotice } from "@plugin-web-update-notification/vite"
 import tailwindcss from "@tailwindcss/vite"
 import path from "path"
 import { defineConfig, loadEnv } from "vite"
-import tsconfigPaths from "vite-tsconfig-paths"
 
 // Generate a random hash for cache busting
 const buildHash = Math.floor(Math.random() * 90000) + 10000
@@ -36,9 +35,10 @@ export default defineConfig(({ mode }) => {
 		},
 		resolve: {
 			alias: {
-				"@": path.resolve(__dirname, "./src")
+				"@": path.resolve(import.meta.dirname, "./src")
 			},
-			dedupe: ["react", "react-dom"]
+			dedupe: ["react", "react-dom"],
+			tsconfigPaths: true
 		},
 		build: {
 			sourcemap: isDev,
@@ -47,7 +47,9 @@ export default defineConfig(({ mode }) => {
 				input: "./index.html",
 				onwarn(warning, warn) {
 					// Filter out specific warnings
+					// "use client" is a React Server Components directive and has no effect in this SPA build
 					if (
+						warning.code === "MODULE_LEVEL_DIRECTIVE" ||
 						warning.message.includes("Module level directives cause errors when bundled") ||
 						warning.message.includes("Can't resolve original location of error")
 					) {
@@ -82,7 +84,6 @@ export default defineConfig(({ mode }) => {
 		},
 		assetsInclude: ["**/*.png", "**/*.jpg", "**/*.jpeg", "**/*.ttf", "**/*.woff", "**/*.woff2", "**/*.svg"],
 		plugins: [
-			tsconfigPaths(),
 			tailwindcss(),
 			webUpdateNotice({
 				hiddenDefaultNotification: false,
