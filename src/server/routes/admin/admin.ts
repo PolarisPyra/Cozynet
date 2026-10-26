@@ -50,7 +50,7 @@ const AdminRoutes = new Hono()
 			try {
 				const { userId, permissions } = c.payload
 
-				const body = await c.req.json()
+				const body = c.req.valid("json")
 				const { arcade_nickname, name, game, namcopcbid, aimecard } = body
 
 				if (!userId || permissions !== UserRole.Admin) {

@@ -94,7 +94,7 @@ const ProfileRoutes = new Hono()
 				await conn.beginTransaction()
 
 				const { userId, aimeCardId } = c.payload
-				const { username } = await c.req.json()
+				const { username } = c.req.valid("json")
 
 				if (!userId || !aimeCardId) throw new HTTPException(403)
 
@@ -162,7 +162,7 @@ const ProfileRoutes = new Hono()
 				await conn.beginTransaction()
 
 				const { userId, aimeCardId } = c.payload
-				const { currentPassword, newPassword } = await c.req.json()
+				const { currentPassword, newPassword } = c.req.valid("json")
 
 				if (!userId || !aimeCardId) throw new HTTPException(403)
 

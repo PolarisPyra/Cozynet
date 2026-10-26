@@ -16,7 +16,7 @@ const UsernameRoutes = new Hono().post(
 	async c => {
 		try {
 			const { userId, versions } = c.payload
-			const { userName } = await c.req.json()
+			const { userName } = c.req.valid("json")
 			const version = versions.ongeki_version
 
 			const [update] = await db.execute<ResultSetHeader>(

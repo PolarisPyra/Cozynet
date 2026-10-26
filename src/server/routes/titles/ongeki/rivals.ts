@@ -18,7 +18,7 @@ const OngekiRivalsRoutes = new Hono()
 		async c => {
 			try {
 				const userId = c.payload.userId
-				const { rivalUserId } = await c.req.json()
+				const { rivalUserId } = c.req.valid("json")
 
 				const [results] = await db.execute<ResultSetHeader>(
 					`
@@ -47,7 +47,7 @@ const OngekiRivalsRoutes = new Hono()
 		async c => {
 			try {
 				const userId = c.payload.userId
-				const { rivalUserId } = await c.req.json()
+				const { rivalUserId } = c.req.valid("json")
 
 				const [results] = await db.execute<ResultSetHeader>(
 					`

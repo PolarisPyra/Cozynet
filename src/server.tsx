@@ -1,7 +1,7 @@
 /** @jsxImportSource hono/jsx */
 import { serve } from "@hono/node-server"
 import { serveStatic } from "@hono/node-server/serve-static"
-import { Hono } from "hono"
+import { type Context, Hono } from "hono"
 import { rateLimiter } from "hono-rate-limiter"
 import { compress } from "hono/compress"
 import { cors } from "hono/cors"
@@ -11,6 +11,7 @@ import { jsxRenderer } from "hono/jsx-renderer"
 import { jwt } from "hono/jwt"
 import { logger } from "hono/logger"
 import { secureHeaders } from "hono/secure-headers"
+import { ZodError } from "zod"
 
 import { jwtPayloadMiddleware } from "./server/middleware/jwtPayload"
 import { Routes, UnprotectedRoutes } from "./server/routes"
@@ -47,10 +48,19 @@ const server = new Hono()
 			return c.json({ error: err.message }, err.status)
 		}
 
+		if (err instanceof ZodError) {
+			return c.json({ error: err.issues[0]?.message ?? "Invalid request" }, 400)
+		}
+
 		const isProduction = process.env.NODE_ENV === "production"
 		return c.json({ error: isProduction ? "Internal server error" : err.message }, 500)
 	})
 	.use(compress())
+
+// Nginx overwrites X-Real-IP with the peer address; the leftmost X-Forwarded-For entry is client-controlled,
+// so fall back to the rightmost entry (the one appended by the proxy)
+const clientIpKey = (c: Context) =>
+	c.req.header("x-real-ip")?.trim() || c.req.header("x-forwarded-for")?.split(",").pop()?.trim() || "unknown"
 
 // Apply rate limiting to all API routes (only in production)
 if (NODE_ENV === "production") {
@@ -62,9 +72,7 @@ if (NODE_ENV === "production") {
 			limit: 10, // 10 attempts per 15 minutes
 			standardHeaders: "draft-6",
 			message: "Too many login attempts. Please try again later.",
-			keyGenerator: c => {
-				return c.req.header("x-forwarded-for")?.split(",")[0].trim() || c.req.header("x-real-ip") || "unknown"
-			}
+			keyGenerator: clientIpKey
 		})
 	)
 
@@ -75,9 +83,7 @@ if (NODE_ENV === "production") {
 			limit: 5, // 5 attempts per hour
 			standardHeaders: "draft-6",
 			message: "Too many signup attempts. Please try again later.",
-			keyGenerator: c => {
-				return c.req.header("x-forwarded-for")?.split(",")[0].trim() || c.req.header("x-real-ip") || "unknown"
-			}
+			keyGenerator: clientIpKey
 		})
 	)
 
@@ -89,9 +95,7 @@ if (NODE_ENV === "production") {
 			limit: 100, // 100 requests per minute
 			standardHeaders: "draft-6",
 			message: "Rate limit exceeded. Please slow down.",
-			keyGenerator: c => {
-				return c.req.header("x-forwarded-for")?.split(",")[0].trim() || c.req.header("x-real-ip") || "unknown"
-			}
+			keyGenerator: clientIpKey
 		})
 	)
 }

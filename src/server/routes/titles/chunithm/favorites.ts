@@ -22,7 +22,7 @@ const FavoritesRoutes = new Hono()
 		async c => {
 			try {
 				const { userId, versions } = c.payload
-				const { favId } = await c.req.json()
+				const { favId } = c.req.valid("json")
 
 				const version = versions.chunithm_version
 
@@ -52,7 +52,7 @@ const FavoritesRoutes = new Hono()
 		async c => {
 			try {
 				const { userId, versions } = c.payload
-				const { favId } = await c.req.json()
+				const { favId } = c.req.valid("json")
 
 				const version = versions.chunithm_version
 

@@ -21,7 +21,7 @@ const RivalsRoutes = new Hono()
 				const { userId, versions } = c.payload
 				const version = versions.chunithm_version
 
-				const { favId } = await c.req.json()
+				const { favId } = c.req.valid("json")
 
 				const [results] = await db.execute<ResultSetHeader>(
 					`
@@ -53,7 +53,7 @@ const RivalsRoutes = new Hono()
 				const { userId, versions } = c.payload
 				const version = versions.chunithm_version
 
-				const { favId } = await c.req.json()
+				const { favId } = c.req.valid("json")
 
 				const [results] = await db.execute<ResultSetHeader>(
 					`

@@ -89,7 +89,7 @@ const UserRoutes = new Hono()
 		async c => {
 			try {
 				const { userId } = c.payload
-				const { accessCode, eamuseAccessCode } = await c.req.json()
+				const { accessCode, eamuseAccessCode } = c.req.valid("json")
 
 				if (!userId) throw new HTTPException(403)
 				const connection = (await db.getConnection()) as ExecutableConnection
@@ -139,19 +139,19 @@ const UserRoutes = new Hono()
 		async c => {
 			try {
 				const { userId } = c.payload
-				const { accessCode, eamuseAccessCode } = await c.req.json()
+				const { accessCode, eamuseAccessCode } = c.req.valid("json")
 
 				if (!userId) throw new HTTPException(403)
 
 				const table = accessCode ? "aime_card" : "eamuse_card"
 				const value = accessCode || eamuseAccessCode
-				const [result] = await db.execute<ResultSetHeader>(`DELETE FROM ${table} WHERE user = ? AND access_code = ?`, [
+				const [result] = await db.execute<ResultSetHeader>(`DELETE FROM ${table} WHERE user = ? AND access_code = ? AND is_banned = 0 AND is_locked = 0`, [
 					userId,
 					value
 				])
 
 				if (result.affectedRows === 0)
-					throw new HTTPException(404, { message: "Card not found or not bound to your account" })
+					throw new HTTPException(404, { message: "Card not found, not bound to your account, or locked" })
 
 				return c.json({ success: true })
 			} catch (error) {

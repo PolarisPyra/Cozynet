@@ -159,7 +159,7 @@ type ExecutableConnection = PoolConnection & {
 const ImportScoreSchema = z.object({
 	songId: z.number().int().nonnegative(),
 	level: z.number().int().min(0).max(4),
-	score: z.number().int().min(0),
+	score: z.number().int().min(0).max(1010000),
 	noteLamp: z.enum(["ALL JUSTICE CRITICAL", "ALL JUSTICE", "FULL COMBO", "NONE"]),
 	clearLamp: z.enum(["CATASTROPHY", "ABSOLUTE", "BRAVE", "HARD", "CLEAR", "FAILED"]),
 	timeAchieved: z.number().int().nonnegative().optional(),
@@ -184,6 +184,14 @@ const getImportedPlayDate = (timeAchieved?: number) => {
 	}
 
 	return DateTime.fromMillis(timeAchieved, { zone: "utc" }).setZone("Asia/Tokyo").toFormat("yyyy-LL-dd HH:mm:ss")
+}
+
+// Keeps multi-row inserts under MySQL's prepared statement placeholder limit
+const IMPORT_CHUNK_SIZE = 1000
+const chunkRows = <T>(rows: T[]) => {
+	const chunks: T[][] = []
+	for (let i = 0; i < rows.length; i += IMPORT_CHUNK_SIZE) chunks.push(rows.slice(i, i + IMPORT_CHUNK_SIZE))
+	return chunks
 }
 
 const getExistingScoreKey = (score: { musicId: number; level: number; score: number; timeAchieved: number | null }) =>
@@ -519,8 +527,8 @@ const ChunithmKamaitachiRoutes = new Hono()
 
 			let importedCount = 0
 
-			if (rowsToInsert.length > 0) {
-				const valuePlaceholders = rowsToInsert
+			for (const chunk of chunkRows(rowsToInsert)) {
+				const valuePlaceholders = chunk
 					.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
 					.join(", ")
 
@@ -546,16 +554,16 @@ const ChunithmKamaitachiRoutes = new Hono()
 					playDate,
 					romVersion
 				) VALUES ${valuePlaceholders}`,
-					rowsToInsert.flat()
+					chunk.flat()
 				)
 
-				importedCount = result.affectedRows
+				importedCount += result.affectedRows
 			}
 
 			let bestUpdatedCount = 0
 
-			if (rowsToUpsertBest.length > 0) {
-				const bestValuePlaceholders = rowsToUpsertBest.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").join(", ")
+			for (const chunk of chunkRows(rowsToUpsertBest)) {
+				const bestValuePlaceholders = chunk.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").join(", ")
 
 				await conn.execute<ResultSetHeader>(
 					`INSERT INTO chuni_score_best (
@@ -584,10 +592,10 @@ const ChunithmKamaitachiRoutes = new Hono()
 						isFullCombo = GREATEST(COALESCE(chuni_score_best.isFullCombo, 0), VALUES(isFullCombo)),
 						isAllJustice = GREATEST(COALESCE(chuni_score_best.isAllJustice, 0), VALUES(isAllJustice)),
 						isSuccess = GREATEST(COALESCE(chuni_score_best.isSuccess, 0), VALUES(isSuccess))`,
-					rowsToUpsertBest.flat()
+					chunk.flat()
 				)
 
-				bestUpdatedCount = rowsToUpsertBest.length
+				bestUpdatedCount += chunk.length
 			}
 
 			await conn.commit()

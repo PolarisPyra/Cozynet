@@ -52,7 +52,7 @@ export function useUpdateAdminUserProfile() {
 					game,
 					version: version.toString()
 				},
-				json: data
+				json: data as Record<string, string | number | boolean | null>
 			})
 			if (!res.ok) throw new Error("Failed to update profile")
 			return await res.json()

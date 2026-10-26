@@ -72,7 +72,7 @@ const routes = new Hono()
 			try {
 				const { userId, versions } = c.payload
 				const version = versions.chunithm_version
-				const { mapIconId } = await c.req.json()
+				const { mapIconId } = c.req.valid("json")
 
 				// Verify user owns the mapicon
 				const [ownership] = await db.execute<RowDataPacket[]>(
@@ -122,7 +122,7 @@ const routes = new Hono()
 				const { userId, versions } = c.payload
 				const version = versions.chunithm_version
 
-				const { filter } = await c.req.json()
+				const { filter } = c.req.valid("json")
 				const { locked } = filter
 
 				let whereClause = "WHERE dsm.version <= ?"

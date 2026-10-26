@@ -34,7 +34,7 @@ const ChunithmScoreLeaderboardRoutes = new Hono().get(
 		try {
 			const { musicId, chartId } = c.req.param()
 			const queryParams = c.req.valid("query")
-			const limit = queryParams.limit || 100
+			const limit = Math.min(queryParams.limit || 100, 500)
 
 			const [results] = await db.execute<(LeaderboardEntry & RowDataPacket)[]>(
 				`

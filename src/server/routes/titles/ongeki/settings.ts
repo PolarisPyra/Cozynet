@@ -59,7 +59,7 @@ const OngekiSettingsRoutes = new Hono()
 				await conn.beginTransaction()
 
 				const { userId, aimeCardId } = c.payload
-				const { version } = await c.req.json()
+				const { version } = c.req.valid("json")
 				if (!aimeCardId) {
 					throw new HTTPException(400, { message: "Missing Aime card id" })
 				}
@@ -73,7 +73,7 @@ const OngekiSettingsRoutes = new Hono()
 					[version, userId]
 				)
 				if (result.affectedRows === 0) {
-					throw rethrowWithMessage("Nothing to be updated", 500)
+					throw new HTTPException(404)
 				}
 
 				// Gotta update the cookie now that the version has changed

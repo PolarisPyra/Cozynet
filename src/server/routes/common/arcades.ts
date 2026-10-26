@@ -84,7 +84,7 @@ LEFT JOIN arcade_owner ao ON a.id = ao.arcade
 			}
 
 			const [results] = await db.execute<(DB.AimeUser & RowDataPacket)[]>(
-				`SELECT au.*, ac.access_code
+				`SELECT au.id, au.username, au.email, au.permissions, au.created_date, au.last_login_date, au.suspend_expire_time, ac.access_code
 					FROM aime_user au
 					LEFT JOIN aime_card ac ON au.id = ac.user`
 			)
@@ -106,7 +106,7 @@ LEFT JOIN arcade_owner ao ON a.id = ao.arcade
 		async c => {
 			try {
 				const { userId, permissions } = c.payload
-				const { arcade, country, state, regionId } = await c.req.json()
+				const { arcade, country, state, regionId } = c.req.valid("json")
 
 				if (!userId) {
 					throw new HTTPException(403)
@@ -114,7 +114,7 @@ LEFT JOIN arcade_owner ao ON a.id = ao.arcade
 
 				if (permissions !== UserRole.Admin) {
 					const [ownership] = await db.execute<({ count: number } & RowDataPacket)[]>(
-						"SELECT COUNT(*) as count FROM arcade_owner WHERE arcade = ? AND user = ?",
+						"SELECT COUNT(*) as count FROM arcade_owner WHERE arcade = ? AND user = ? AND permissions = 1",
 						[arcade, userId]
 					)
 
@@ -162,12 +162,12 @@ LEFT JOIN arcade_owner ao ON a.id = ao.arcade
 		async c => {
 			try {
 				const { userId, permissions } = c.payload
-				const { arcade, name, nickname } = await c.req.json()
+				const { arcade, name, nickname } = c.req.valid("json")
 
 				// Non-admin users can only rename arcades they own
 				if (permissions !== UserRole.Admin) {
 					const [ownership] = await db.execute<({ count: number } & RowDataPacket)[]>(
-						"SELECT COUNT(*) as count FROM arcade_owner WHERE arcade = ? AND user = ?",
+						"SELECT COUNT(*) as count FROM arcade_owner WHERE arcade = ? AND user = ? AND permissions = 1",
 						[arcade, userId]
 					)
 
@@ -208,7 +208,7 @@ LEFT JOIN arcade_owner ao ON a.id = ao.arcade
 		async c => {
 			try {
 				const { permissions } = c.payload
-				const { arcade, user } = await c.req.json()
+				const { arcade, user } = c.req.valid("json")
 
 				if (permissions !== UserRole.Admin) {
 					throw new HTTPException(403, {
@@ -220,7 +220,7 @@ LEFT JOIN arcade_owner ao ON a.id = ao.arcade
 				const [update] = await db.execute<ResultSetHeader>(
 					`UPDATE arcade_owner
 									SET user = ?
-									WHERE arcade = ?`,
+									WHERE arcade = ? AND permissions = 1`,
 					[user, arcade]
 				)
 

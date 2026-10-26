@@ -19,7 +19,7 @@ const ChunithmModsRoutes = new Hono()
 		async c => {
 			try {
 				const { userId } = c.payload
-				const { value } = await c.req.json()
+				const { value } = c.req.valid("json")
 
 				const [update] = await db.execute<ResultSetHeader>(
 					`
@@ -55,7 +55,7 @@ const ChunithmModsRoutes = new Hono()
 		async c => {
 			try {
 				const { userId } = c.payload
-				const { value } = await c.req.json()
+				const { value } = c.req.valid("json")
 
 				const [update] = await db.execute<ResultSetHeader>(
 					`
@@ -91,7 +91,7 @@ const ChunithmModsRoutes = new Hono()
 		async c => {
 			try {
 				const { userId } = c.payload
-				const { value } = await c.req.json()
+				const { value } = c.req.valid("json")
 
 				const [update] = await db.execute<ResultSetHeader>(
 					`
@@ -127,7 +127,7 @@ const ChunithmModsRoutes = new Hono()
 		async c => {
 			try {
 				const { userId } = c.payload
-				const { value } = await c.req.json()
+				const { value } = c.req.valid("json")
 
 				const [update] = await db.execute<ResultSetHeader>(
 					`

@@ -82,7 +82,7 @@ const routes = new Hono()
 			try {
 				const { userId, versions } = c.payload
 				const version = versions.chunithm_version
-				const { trophyId, slot } = await c.req.json()
+				const { trophyId, slot } = c.req.valid("json")
 
 				// Check if user owns this trophy (trophy ID 0 is always owned - means no trophy)
 				if (trophyId !== 0) {
@@ -150,7 +150,7 @@ const routes = new Hono()
 				const { userId, versions } = c.payload
 				const version = versions.chunithm_version
 
-				const { filter } = await c.req.json()
+				const { filter } = c.req.valid("json")
 				const { locked, rareType } = filter
 
 				let additionalWhere = ""

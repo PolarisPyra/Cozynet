@@ -412,7 +412,7 @@ const AdminUserRoutes = new Hono()
 					throw new HTTPException(403)
 				}
 
-				const body = await c.req.json()
+				const body = c.req.valid("json")
 				const { username, email, permissions } = body
 
 				if (email) {
@@ -513,51 +513,57 @@ const AdminUserRoutes = new Hono()
 			throw rethrowWithMessage("Failed to fetch user profiles", error)
 		}
 	})
-	.put("/:id/profiles/:game/:version", validateJson(z.record(z.any())), async c => {
-		try {
-			const { userId: currentUserId, permissions: currentUserPermissions } = c.payload
-			const targetId = parseInt(c.req.param("id"))
-			const game = c.req.param("game")
-			const version = parseInt(c.req.param("version"))
+	.put(
+		"/:id/profiles/:game/:version",
+		validateJson(
+			z.record(z.string().regex(/^[A-Za-z0-9_]+$/), z.union([z.string(), z.number(), z.boolean(), z.null()]))
+		),
+		async c => {
+			try {
+				const { userId: currentUserId, permissions: currentUserPermissions } = c.payload
+				const targetId = parseInt(c.req.param("id"))
+				const game = c.req.param("game")
+				const version = parseInt(c.req.param("version"))
 
-			if (!currentUserId || currentUserPermissions !== UserRole.Admin) {
-				throw new HTTPException(403)
+				if (!currentUserId || currentUserPermissions !== UserRole.Admin) {
+					throw new HTTPException(403)
+				}
+
+				const body = c.req.valid("json")
+
+				let tableName = ""
+				if (game === "chunithm" || game === "chunithmnew") tableName = "chuni_profile_data"
+				else if (game === "ongeki") tableName = "ongeki_profile_data"
+				else if (game === "maimai" || game === "maimaidx") tableName = "mai2_profile_detail"
+				else throw new HTTPException(400, { message: "Invalid game" })
+
+				// Build dynamic update query
+				// Filter out restricted keys
+				const restrictedKeys = ["id", "user", "version"]
+				const entries = Object.entries(body).filter(([key]) => !restrictedKeys.includes(key))
+
+				if (entries.length === 0) return c.json({ success: true })
+
+				const setFields = entries.map(([key]) => `\`${key}\` = ?`).join(", ")
+				const values = entries.map(([, val]) => val)
+
+				await db.execute<ResultSetHeader>(`UPDATE \`${tableName}\` SET ${setFields} WHERE user = ? AND version = ?`, [
+					...values,
+					targetId,
+					version
+				])
+
+				return c.json({ success: true })
+			} catch (error) {
+				throw rethrowWithMessage("Failed to update user profile", error)
 			}
-
-			const body = await c.req.json()
-
-			let tableName = ""
-			if (game === "chunithm" || game === "chunithmnew") tableName = "chuni_profile_data"
-			else if (game === "ongeki") tableName = "ongeki_profile_data"
-			else if (game === "maimai" || game === "maimaidx") tableName = "mai2_profile_detail"
-			else throw new HTTPException(400, { message: "Invalid game" })
-
-			// Build dynamic update query
-			// Filter out restricted keys
-			const restrictedKeys = ["id", "user", "version"]
-			const entries = Object.entries(body).filter(([key]) => !restrictedKeys.includes(key))
-
-			if (entries.length === 0) return c.json({ success: true })
-
-			const setFields = entries.map(([key]) => `\`${key}\` = ?`).join(", ")
-			const values = entries.map(([, val]) => val)
-
-			await db.execute<ResultSetHeader>(`UPDATE \`${tableName}\` SET ${setFields} WHERE user = ? AND version = ?`, [
-				...values,
-				targetId,
-				version
-			])
-
-			return c.json({ success: true })
-		} catch (error) {
-			throw rethrowWithMessage("Failed to update user profile", error)
 		}
-	})
+	)
 	.post("/:id/ban", validateJson(z.object({ banned: z.boolean() })), async c => {
 		try {
 			const { userId: currentUserId, permissions: currentUserPermissions } = c.payload
 			const targetId = parseInt(c.req.param("id"))
-			const { banned } = await c.req.json()
+			const { banned } = c.req.valid("json")
 
 			if (!currentUserId || currentUserPermissions !== UserRole.Admin) {
 				throw new HTTPException(403)
@@ -573,7 +579,7 @@ const AdminUserRoutes = new Hono()
 		try {
 			const { userId: currentUserId, permissions: currentUserPermissions } = c.payload
 			const targetId = parseInt(c.req.param("id"))
-			const { locked } = await c.req.json()
+			const { locked } = c.req.valid("json")
 
 			if (!currentUserId || currentUserPermissions !== UserRole.Admin) {
 				throw new HTTPException(403)

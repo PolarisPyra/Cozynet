@@ -124,7 +124,7 @@ const ChunithmOptionsRoutes = new Hono()
 				const userId = c.payload.userId
 				if (!userId) throw new HTTPException(403)
 
-				const options = await c.req.json()
+				const options = c.req.valid("json")
 
 				// Check if user has existing options
 				const [existing] = await db.execute<RowDataPacket[]>("SELECT id FROM chuni_profile_option WHERE user = ?", [
@@ -132,17 +132,17 @@ const ChunithmOptionsRoutes = new Hono()
 				])
 
 				if (existing.length > 0) {
-					// Update existing record with all fields
+					// Update existing record, keeping fields that were not provided
 					const [result] = await db.execute<ResultSetHeader>(
 						`UPDATE chuni_profile_option SET
-							speed = ?, speed_120 = ?, mirrorFumen = ?, trackSkip = ?,
-							judgeTimingOffset = ?, judgeTimingOffset_120 = ?, playTimingOffset = ?, playTimingOffset_120 = ?,
-							matching = ?, playerLevel = ?, rating = ?, categoryDetail = ?,
-							guideSound = ?, successTapTimbre = ?, successTap = ?, successExTap = ?,
-							successSlideHold = ?, successAir = ?, successFlick = ?, successSkill = ?,
-							judgeAppendSe = ?, judgePos = ?, judgeCritical = ?, judgeJustice = ?,
-							judgeAttack = ?, guideLine = ?, fieldColor = ?, fieldWallPosition = ?,
-							fieldWallPosition_120 = ?, bgInfo = ?
+							speed = COALESCE(?, speed), speed_120 = COALESCE(?, speed_120), mirrorFumen = COALESCE(?, mirrorFumen), trackSkip = COALESCE(?, trackSkip),
+							judgeTimingOffset = COALESCE(?, judgeTimingOffset), judgeTimingOffset_120 = COALESCE(?, judgeTimingOffset_120), playTimingOffset = COALESCE(?, playTimingOffset), playTimingOffset_120 = COALESCE(?, playTimingOffset_120),
+							matching = COALESCE(?, matching), playerLevel = COALESCE(?, playerLevel), rating = COALESCE(?, rating), categoryDetail = COALESCE(?, categoryDetail),
+							guideSound = COALESCE(?, guideSound), successTapTimbre = COALESCE(?, successTapTimbre), successTap = COALESCE(?, successTap), successExTap = COALESCE(?, successExTap),
+							successSlideHold = COALESCE(?, successSlideHold), successAir = COALESCE(?, successAir), successFlick = COALESCE(?, successFlick), successSkill = COALESCE(?, successSkill),
+							judgeAppendSe = COALESCE(?, judgeAppendSe), judgePos = COALESCE(?, judgePos), judgeCritical = COALESCE(?, judgeCritical), judgeJustice = COALESCE(?, judgeJustice),
+							judgeAttack = COALESCE(?, judgeAttack), guideLine = COALESCE(?, guideLine), fieldColor = COALESCE(?, fieldColor), fieldWallPosition = COALESCE(?, fieldWallPosition),
+							fieldWallPosition_120 = COALESCE(?, fieldWallPosition_120), bgInfo = COALESCE(?, bgInfo)
 							WHERE user = ?`,
 						[
 							options.speed ?? null,

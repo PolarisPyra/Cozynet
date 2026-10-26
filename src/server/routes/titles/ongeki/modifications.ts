@@ -25,7 +25,7 @@ const OngekiModsRoutes = new Hono()
 				await conn.beginTransaction()
 
 				const userId = c.payload.userId
-				const { version } = await c.req.json()
+				const { version } = c.req.valid("json")
 
 				await conn.execute(
 					`
@@ -95,7 +95,7 @@ const OngekiModsRoutes = new Hono()
 		async c => {
 			try {
 				const userId = c.payload.userId
-				const { itemKind, version } = await c.req.json()
+				const { itemKind, version } = c.req.valid("json")
 
 				await db.execute(
 					`

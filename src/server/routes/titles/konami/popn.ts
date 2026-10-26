@@ -139,7 +139,7 @@ const PopnSettingsRoutes = new Hono()
 	.post("/", validateJson(popnSettingsSchema), async c => {
 		try {
 			const { userId } = c.payload
-			const settings = await c.req.json()
+			const settings = c.req.valid("json")
 			const settingEntries = Object.entries(settings) as [keyof typeof popnSettings, number | boolean][]
 
 			for (const [name, value] of settingEntries) {
@@ -180,7 +180,7 @@ const PopnSettingsRoutes = new Hono()
 	.post("/forceUnlock", validateJson(z.object({ enabled: z.boolean() })), async c => {
 		try {
 			const { userId } = c.payload
-			const { enabled } = await c.req.json()
+			const { enabled } = c.req.valid("json")
 			const value = enabled ? 1 : 0
 			const [update] = await db.execute<ResultSetHeader>(
 				"UPDATE cozynet_user_option SET value = ? WHERE user = ? AND `key` = ?",

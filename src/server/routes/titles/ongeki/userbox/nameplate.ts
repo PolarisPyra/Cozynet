@@ -71,7 +71,7 @@ const routes = new Hono()
 			try {
 				const { userId, versions } = c.payload
 				const version = versions.ongeki_version
-				const { nameplateId } = await c.req.json()
+				const { nameplateId } = c.req.valid("json")
 
 				// Verify user owns the nameplate
 				const [ownership] = await db.execute<RowDataPacket[]>(
@@ -115,7 +115,7 @@ const routes = new Hono()
 			try {
 				const { userId, versions } = c.payload
 				const version = versions.ongeki_version
-				const { filter } = await c.req.json()
+				const { filter } = c.req.valid("json")
 				const { locked } = filter
 
 				let whereClause = "WHERE dsn.version = ?"

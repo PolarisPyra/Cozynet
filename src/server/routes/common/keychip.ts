@@ -46,48 +46,6 @@ const KeychipRoutes = new Hono()
 			throw rethrowWithMessage("Failed to fetch trusted keychips", error)
 		}
 	})
-	.post("/generate", async c => {
-		try {
-			const { userId } = c.payload
-			if (!userId) throw new HTTPException(403)
-
-			// Generate a random keychip ID (serial)
-			// Format: A69E01A[0-9]{4}[0-9]{4} (15 chars total, e.g., A69E01A97462352)
-
-			let uniqueNumbers = ""
-			while (uniqueNumbers.length < 4) {
-				const digit = Math.floor(Math.random() * 10)
-				if (!uniqueNumbers.includes(digit.toString())) uniqueNumbers += digit
-			}
-			const randomNumbers = Math.floor(1000 + Math.random() * 9000)
-				.toString()
-				.padStart(4, "0")
-
-			const keychipId = `A69E01A${uniqueNumbers}${randomNumbers}`
-
-			// Create a new arcade for this keychip
-			const [arcadeResult] = await db.execute<ResultSetHeader>("INSERT INTO arcade (name, nickname) VALUES (?, ?)", [
-				`Keychip ${keychipId.substring(0, 12)}`,
-				`keychip-${keychipId.substring(0, 12)}`
-			])
-
-			const arcadeId = arcadeResult.insertId
-
-			// Set user as owner
-			await db.execute<ResultSetHeader>("INSERT INTO arcade_owner (user, arcade, permissions) VALUES (?, ?, ?)", [
-				userId,
-				arcadeId,
-				1
-			])
-
-			// Create machine with the keychip ID as serial
-			await db.execute<ResultSetHeader>("INSERT INTO machine (arcade, serial) VALUES (?, ?)", [arcadeId, keychipId])
-
-			return c.json({ success: true, keychipId })
-		} catch (error) {
-			throw rethrowWithMessage("Failed to generate keychip", error)
-		}
-	})
 	.post(
 		"/rename",
 		validateJson(
@@ -99,7 +57,7 @@ const KeychipRoutes = new Hono()
 		async c => {
 			try {
 				const { userId } = c.payload
-				const { keychipId, placeName } = await c.req.json()
+				const { keychipId, placeName } = c.req.valid("json")
 
 				if (!userId) throw new HTTPException(403)
 
@@ -107,7 +65,7 @@ const KeychipRoutes = new Hono()
 				const [machines] = await db.execute<(DB.Machine & RowDataPacket)[]>(
 					`SELECT m.* FROM machine m
 					INNER JOIN arcade_owner ao ON m.arcade = ao.arcade
-					WHERE m.serial = ? AND ao.user = ?`,
+					WHERE m.serial = ? AND ao.user = ? AND ao.permissions = 1`,
 					[keychipId, userId]
 				)
 
@@ -141,7 +99,7 @@ const KeychipRoutes = new Hono()
 		async c => {
 			try {
 				const { userId } = c.payload
-				const { id: machineId } = c.req.param()
+				const { id: machineId } = c.req.valid("param")
 
 				if (!userId) throw new HTTPException(403)
 
@@ -149,7 +107,7 @@ const KeychipRoutes = new Hono()
 				const [machines] = await db.execute<(DB.Machine & RowDataPacket)[]>(
 					`SELECT m.* FROM machine m
 				INNER JOIN arcade_owner ao ON m.arcade = ao.arcade
-				WHERE m.id = ? AND ao.user = ?`,
+				WHERE m.id = ? AND ao.user = ? AND ao.permissions = 1`,
 					[machineId, userId]
 				)
 
@@ -159,18 +117,28 @@ const KeychipRoutes = new Hono()
 
 				const machine = machines[0]
 
-				// Delete machine
-				await db.execute<ResultSetHeader>("DELETE FROM machine WHERE id = ?", [machineId])
+				const conn = await db.getConnection()
+				try {
+					await conn.beginTransaction()
 
-				// Delete arcade ownership
-				await db.execute<ResultSetHeader>("DELETE FROM arcade_owner WHERE arcade = ?", [machine.arcade])
+					// Delete machine
+					await conn.execute<ResultSetHeader>("DELETE FROM machine WHERE id = ?", [machineId])
 
-				// Optionally delete arcade if no other machines
-				const [otherMachines] = await db.execute<RowDataPacket[]>("SELECT id FROM machine WHERE arcade = ?", [
-					machine.arcade
-				])
-				if (otherMachines.length === 0) {
-					await db.execute<ResultSetHeader>("DELETE FROM arcade WHERE id = ?", [machine.arcade])
+					// Delete arcade ownership and the arcade only if no other machines remain
+					const [otherMachines] = await conn.execute<RowDataPacket[]>("SELECT id FROM machine WHERE arcade = ?", [
+						machine.arcade
+					])
+					if (otherMachines.length === 0) {
+						await conn.execute<ResultSetHeader>("DELETE FROM arcade_owner WHERE arcade = ?", [machine.arcade])
+						await conn.execute<ResultSetHeader>("DELETE FROM arcade WHERE id = ?", [machine.arcade])
+					}
+
+					await conn.commit()
+				} catch (error) {
+					await conn.rollback()
+					throw error
+				} finally {
+					conn.release()
 				}
 
 				return c.json({ success: true })
@@ -190,7 +158,7 @@ const KeychipRoutes = new Hono()
 		async c => {
 			try {
 				const { userId } = c.payload
-				const { keychipId } = await c.req.json()
+				const { keychipId } = c.req.valid("json")
 
 				if (!userId) throw new HTTPException(403)
 
@@ -237,7 +205,7 @@ const KeychipRoutes = new Hono()
 		async c => {
 			try {
 				const { userId } = c.payload
-				const { keychipId } = await c.req.json()
+				const { keychipId } = c.req.valid("json")
 
 				if (!userId) throw new HTTPException(403)
 

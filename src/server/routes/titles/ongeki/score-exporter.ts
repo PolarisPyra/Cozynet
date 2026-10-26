@@ -174,7 +174,7 @@ const normalizeOptionalJudgements = (value: unknown) => {
 const ImportScoreSchema = z.object({
 	songId: z.number().int().nonnegative(),
 	level: z.union([z.number().int().min(0).max(3), z.literal(10)]),
-	score: z.number().int().min(0),
+	score: z.number().int().min(0).max(1010000),
 	noteLamp: z.enum(["LOSS", "CLEAR", "FULL COMBO", "ALL BREAK", "ALL BREAK+"]),
 	bellLamp: z.enum(["NONE", "FULL BELL"]),
 	platinumScore: z.number().int().min(0).nullable().optional(),
@@ -209,6 +209,14 @@ const getImportedPlayDate = (timeAchieved?: number) => {
 	}
 
 	return DateTime.fromMillis(timeAchieved, { zone: "utc" }).setZone("Asia/Tokyo").toFormat("yyyy-LL-dd HH:mm:ss")
+}
+
+// Keeps multi-row inserts under MySQL's prepared statement placeholder limit
+const IMPORT_CHUNK_SIZE = 1000
+const chunkRows = <T>(rows: T[]) => {
+	const chunks: T[][] = []
+	for (let i = 0; i < rows.length; i += IMPORT_CHUNK_SIZE) chunks.push(rows.slice(i, i + IMPORT_CHUNK_SIZE))
+	return chunks
 }
 
 const getExistingScoreKey = (score: ExistingImportedScoreRow) => `${score.musicId}:${score.level}:${score.techScore}`
@@ -600,8 +608,8 @@ const OngekiKamaitachiRoutes = new Hono()
 
 			let importedCount = 0
 
-			if (rowsToInsert.length > 0) {
-				const valuePlaceholders = rowsToInsert
+			for (const chunk of chunkRows(rowsToInsert)) {
+				const valuePlaceholders = chunk
 					.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
 					.join(", ")
 
@@ -631,16 +639,16 @@ const OngekiKamaitachiRoutes = new Hono()
 						playDate,
 						version
 					) VALUES ${valuePlaceholders}`,
-					rowsToInsert.flat()
+					chunk.flat()
 				)
 
-				importedCount = result.affectedRows
+				importedCount += result.affectedRows
 			}
 
 			let bestUpdatedCount = 0
 
-			if (rowsToUpsertBest.length > 0) {
-				const bestValuePlaceholders = rowsToUpsertBest
+			for (const chunk of chunkRows(rowsToUpsertBest)) {
+				const bestValuePlaceholders = chunk
 					.map(() => "(?, ?, ?, ?, ?, ?, 0, 0, ?, 0, 0, ?, ?, ?, 0, ?, 0, ?, ?)")
 					.join(", ")
 
@@ -684,10 +692,10 @@ const OngekiKamaitachiRoutes = new Hono()
 							WHEN VALUES(platinumScoreStar) > COALESCE(ongeki_score_best.platinumScoreStar, 0) THEN VALUES(platinumScoreStar)
 							ELSE ongeki_score_best.platinumScoreStar
 						END`,
-					rowsToUpsertBest.flat()
+					chunk.flat()
 				)
 
-				bestUpdatedCount = rowsToUpsertBest.length
+				bestUpdatedCount += chunk.length
 			}
 
 			await conn.commit()

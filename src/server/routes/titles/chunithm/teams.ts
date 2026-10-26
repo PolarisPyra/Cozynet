@@ -29,7 +29,7 @@ const ChunithmTeamsRoutes = new Hono()
 		async c => {
 			try {
 				const { userId, versions } = c.payload
-				const { teamId } = await c.req.json()
+				const { teamId } = c.req.valid("json")
 
 				const version = versions.chunithm_version
 
@@ -58,7 +58,7 @@ const ChunithmTeamsRoutes = new Hono()
 		),
 		async c => {
 			try {
-				const { teamName } = await c.req.json()
+				const { teamName } = c.req.valid("json")
 
 				const [existingTeam] = await db.execute<RowDataPacket[]>(
 					`SELECT id FROM chuni_profile_team WHERE teamName = ?`,

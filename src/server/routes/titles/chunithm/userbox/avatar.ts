@@ -58,6 +58,7 @@ async function getCurrentAvatarItems(userId: number, version: number): Promise<A
 		LEFT JOIN chuni_item_item cii
 			ON cii.itemId = csa.avatarAccessoryId
 		AND cii.user = ?
+		AND cii.itemKind = 11
 		JOIN chuni_profile_data cpd
 			ON cpd.user = ?
 		AND cpd.version = ?
@@ -113,7 +114,7 @@ const routes = new Hono()
 			try {
 				const { userId, versions } = c.payload
 				const version = versions.chunithm_version
-				const { back, face, front, head, item, skin, wear } = await c.req.json()
+				const { back, face, front, head, item, skin, wear } = c.req.valid("json")
 
 				// Validate able to update
 				const itemIds = [back, face, front, head, item, skin, wear].filter(id => id !== undefined && id !== null)
@@ -181,7 +182,7 @@ const routes = new Hono()
 		validateJson(
 			z.object({
 				filter: z.object({
-					slot: z.array(z.nativeEnum(AvatarSlot)),
+					slot: z.array(z.nativeEnum(AvatarSlot)).min(1),
 					locked: z.boolean().nullable()
 				})
 			})
@@ -191,7 +192,7 @@ const routes = new Hono()
 				const { userId, versions } = c.payload
 				const version = versions.chunithm_version
 
-				const { filter } = await c.req.json()
+				const { filter } = c.req.valid("json")
 				const { slot, locked } = filter
 
 				// Map category numbers to slot names for the IN clause
@@ -250,6 +251,7 @@ const routes = new Hono()
 				LEFT JOIN chuni_item_item cii
 				ON cii.itemId = csa.avatarAccessoryId
 				AND cii.user = ?
+				AND cii.itemKind = 11
 				LEFT JOIN chuni_profile_data cpd
 				ON cpd.user = ?
 				AND cpd.version = ?
@@ -336,7 +338,7 @@ const routes = new Hono()
 				await db.execute<ResultSetHeader>(
 					`
 						INSERT INTO chuni_item_item (user, itemId, itemKind, stock, isValid)
-						VALUES (?, ?, 1, 1, 1)
+						VALUES (?, ?, 11, 1, 1)
 						ON DUPLICATE KEY UPDATE user = user
 					`,
 					[userId, id]
@@ -347,7 +349,7 @@ const routes = new Hono()
 			}
 		}
 	)
-	.get(":id", validateParams(z.object({ id: validAvatarItemId })), async c => {
+	.get(":id", validateParams(z.object({ id: z.coerce.number().int().gte(0) })), async c => {
 		try {
 			const { userId, versions } = c.payload
 			const version = versions.chunithm_version
@@ -375,6 +377,7 @@ const routes = new Hono()
 						WHEN 3 THEN 'face'
 						WHEN 4 THEN 'skin'
 						WHEN 5 THEN 'item'
+						WHEN 6 THEN 'front'
 						WHEN 7 THEN 'back'
 					END               AS slot,
 					CASE
@@ -393,6 +396,7 @@ const routes = new Hono()
 				LEFT JOIN chuni_item_item cii
 				ON cii.itemId = csa.avatarAccessoryId
 				AND cii.user = ?
+				AND cii.itemKind = 11
 				LEFT JOIN chuni_static_opts cso
 				ON csa.opt = cso.id
 				LEFT JOIN cozynet_web_permissions dwp

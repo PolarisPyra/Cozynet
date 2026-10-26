@@ -23,7 +23,7 @@ const UnprotectedRoutes = new Hono()
 		return c.json({ status: "ok" })
 	})
 	.post("/login", validateJson(loginSchema), async c => {
-		const { username, password, turnstileToken } = await c.req.json()
+		const { username, password, turnstileToken } = c.req.valid("json")
 
 		await verifyTurnstileToken(turnstileToken, c.req.raw.headers)
 
@@ -37,7 +37,7 @@ const UnprotectedRoutes = new Hono()
 				[username]
 			)
 			const foundUser = users[0]
-			if (!foundUser) {
+			if (!foundUser || !foundUser.password) {
 				throw new HTTPException(401, {
 					message: "Invalid username or password"
 				})
@@ -87,7 +87,7 @@ const UnprotectedRoutes = new Hono()
 		return c.json({ message: "Logged out" })
 	})
 	.post("/signup", validateJson(signupSchema), async c => {
-		const body = await c.req.json()
+		const body = c.req.valid("json")
 		const { username, password, accessCode, turnstileToken } = body
 
 		await verifyTurnstileToken(turnstileToken, c.req.raw.headers)
@@ -166,7 +166,7 @@ const UnprotectedRoutes = new Hono()
 			)
 
 			// Grab user game versions
-			const versions = await getUserGameVersions(existingUser.id, conn)
+			const versions = await getUserGameVersions(userId, conn)
 			const user = await signAndSetCookie(c, updatedUser, aimeCard, versions)
 
 			await conn.commit()

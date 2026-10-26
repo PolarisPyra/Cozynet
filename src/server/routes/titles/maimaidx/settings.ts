@@ -24,7 +24,7 @@ const MaimaiDXSettings = new Hono()
 				await conn.beginTransaction()
 
 				const { userId, aimeCardId } = c.payload
-				const { version } = await c.req.json()
+				const { version } = c.req.valid("json")
 				if (!aimeCardId) {
 					throw new HTTPException(400, { message: "Missing Aime card id" })
 				}

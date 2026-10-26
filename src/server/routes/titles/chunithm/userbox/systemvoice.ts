@@ -79,7 +79,7 @@ const routes = new Hono()
 		try {
 			const { userId, versions } = c.payload
 			const version = versions.chunithm_version
-			const { systemVoiceId } = await c.req.json()
+			const { systemVoiceId } = c.req.valid("json")
 
 			// Check if user owns this systemvoice (itemKind 9 for system voices)
 			const [ownershipResult] = await db.execute<RowDataPacket[]>(
@@ -126,7 +126,7 @@ const routes = new Hono()
 		try {
 			const { userId, versions } = c.payload
 			const version = versions.chunithm_version
-			const { filter } = await c.req.json()
+			const { filter } = c.req.valid("json")
 
 			let additionalWhere = ""
 			const params: any[] = [userId, userId, version, userId, version]
