@@ -16,7 +16,7 @@
 		"test": "node -v"
 	},
 	"dependencies": {
-		"@hono/node-server": "2.1.5",
+		"@hono/node-server": "2.1.8",
 		"@hono/vite-dev-server": "0.26.1",
 		"@hono/zod-validator": "0.9.1",
 		"@hookform/resolvers": "^6.0.0",
@@ -62,7 +62,7 @@
 		"dotenv": "18.0.8",
 		"embla-carousel-react": "^8.6.0",
 		"fflate": "^0.8.3",
-		"hono": "4.13.13",
+		"hono": "4.13.18",
 		"hono-rate-limiter": "0.5.4",
 		"html-to-image": "1.11.13",
 		"input-otp": "^1.5.0",
