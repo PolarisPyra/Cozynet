@@ -4,6 +4,7 @@ import type { RowDataPacket } from "mysql2"
 
 import { db } from "../db"
 import { UserMeta } from "../types/jwt"
+import { passwordFingerprint } from "../utils/cookie"
 
 declare module "hono" {
 	interface Context {
@@ -19,8 +20,8 @@ declare module "hono" {
 export const jwtPayloadMiddleware = (): MiddlewareHandler => {
 	return async (c, next) => {
 		let payload = {} as UserMeta
+		const jwtPayload = c.get("jwtPayload") as { user?: string; pwf?: string } | undefined
 		try {
-			const jwtPayload = c.get("jwtPayload") as { user?: string } | undefined
 			if (jwtPayload && jwtPayload.user) {
 				payload = JSON.parse(jwtPayload.user) as UserMeta
 			}
@@ -29,12 +30,22 @@ export const jwtPayloadMiddleware = (): MiddlewareHandler => {
 		}
 
 		if (payload.userId) {
-			const [users] = await db.execute<({ permissions: number | null } & RowDataPacket)[]>(
-				"SELECT permissions FROM aime_user WHERE id = ?",
+			const [users] = await db.execute<
+				({ permissions: number | null; password: string | null; banned: number } & RowDataPacket)[]
+			>(
+				`SELECT permissions, password,
+					EXISTS (SELECT 1 FROM aime_card WHERE user = aime_user.id AND is_banned = 1) AS banned
+				FROM aime_user WHERE id = ?`,
 				[payload.userId]
 			)
 			if (!users[0]) {
 				throw new HTTPException(401, { message: "User no longer exists" })
+			}
+			if (jwtPayload?.pwf !== passwordFingerprint(users[0].password)) {
+				throw new HTTPException(401, { message: "Session expired" })
+			}
+			if (users[0].banned) {
+				throw new HTTPException(401, { message: "Account banned" })
 			}
 			payload.permissions = users[0].permissions || 0
 		}

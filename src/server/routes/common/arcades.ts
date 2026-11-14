@@ -66,7 +66,7 @@ LEFT JOIN arcade_owner ao ON a.id = ao.arcade
     FROM machine m
     LEFT JOIN arcade a ON m.arcade = a.id
     LEFT JOIN arcade_owner ao ON a.id = ao.arcade
-  WHERE user = ?
+  WHERE ao.user = ? AND ao.permissions = 1
   `,
 				[userId]
 			)

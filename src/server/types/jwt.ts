@@ -25,4 +25,7 @@ export interface JWTPayload extends TrimmedJWT {
 	exp: number
 
 	user: Stringified<UserMeta>
+
+	// Fingerprint of the password hash the session was issued under
+	pwf: string
 }

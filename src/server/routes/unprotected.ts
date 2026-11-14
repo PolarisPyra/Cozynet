@@ -51,9 +51,12 @@ const UnprotectedRoutes = new Hono()
 				})
 			}
 			const [aimeCards] = await conn.execute<(DB.AimeCard & RowDataPacket)[]>(
-				"SELECT access_code FROM aime_card WHERE user = ?",
+				"SELECT access_code, is_banned FROM aime_card WHERE user = ?",
 				[foundUser.id]
 			)
+			if (aimeCards.some(card => card.is_banned)) {
+				throw new HTTPException(403, { message: "Account banned" })
+			}
 			const aimeCard = aimeCards[0]
 
 			// Update last login date

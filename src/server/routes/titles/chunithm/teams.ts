@@ -23,7 +23,7 @@ const ChunithmTeamsRoutes = new Hono()
 		"updateteam",
 		validateJson(
 			z.object({
-				teamId: z.number()
+				teamId: z.number().int().positive()
 			})
 		),
 		async c => {
@@ -32,6 +32,11 @@ const ChunithmTeamsRoutes = new Hono()
 				const { teamId } = c.req.valid("json")
 
 				const version = versions.chunithm_version
+
+				const [teams] = await db.execute<RowDataPacket[]>("SELECT id FROM chuni_profile_team WHERE id = ?", [teamId])
+				if (teams.length === 0) {
+					throw new HTTPException(404, { message: "Team not found" })
+				}
 
 				const [result] = await db.execute<ResultSetHeader>(
 					`
@@ -53,7 +58,7 @@ const ChunithmTeamsRoutes = new Hono()
 		"addteam",
 		validateJson(
 			z.object({
-				teamName: z.string().min(1)
+				teamName: z.string().trim().min(1).max(32)
 			})
 		),
 		async c => {

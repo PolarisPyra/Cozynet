@@ -1,11 +1,19 @@
 import { Context } from "hono"
 import { setCookie } from "hono/cookie"
 import { sign } from "hono/jwt"
+import { createHash } from "node:crypto"
 
 import { DB } from "@/app/shared/types"
 
 import { JWTPayload } from "../types"
 import { GameVersions, UserMeta } from "../types/jwt"
+
+/** Ties a session to the password it was issued under, so changing the password ends every older session. */
+export const passwordFingerprint = (passwordHash: string | null | undefined) =>
+	createHash("sha256")
+		.update(passwordHash ?? "")
+		.digest("hex")
+		.slice(0, 16)
 
 export const signAndSetCookie = async (
 	c: Context,
@@ -23,6 +31,7 @@ export const signAndSetCookie = async (
 	// Create JWT token
 	const payload: JWTPayload = {
 		user: JSON.stringify(userMeta),
+		pwf: passwordFingerprint(user.password),
 		exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7 // 7 days expiration
 	}
 

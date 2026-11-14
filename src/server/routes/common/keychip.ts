@@ -3,7 +3,7 @@ import { HTTPException } from "hono/http-exception"
 import type { ResultSetHeader, RowDataPacket } from "mysql2"
 import { z } from "zod"
 
-import { DB } from "@/app/shared/types"
+import { DB, UserRole } from "@/app/shared/types"
 import { keychipSerialSchema } from "@/app/shared/types/validation/auth"
 import { db } from "@/server/db"
 import { validateJson, validateParams } from "@/server/middleware/validator"
@@ -23,7 +23,7 @@ const KeychipRoutes = new Hono()
 				FROM machine m
 				INNER JOIN arcade_owner ao ON m.arcade = ao.arcade
 				INNER JOIN arcade a ON m.arcade = a.id
-				WHERE ao.user = ?
+				WHERE ao.user = ? AND ao.permissions = 1
 				ORDER BY m.id ASC`,
 				[userId]
 			)
@@ -157,10 +157,11 @@ const KeychipRoutes = new Hono()
 		),
 		async c => {
 			try {
-				const { userId } = c.payload
+				const { userId, permissions } = c.payload
 				const { keychipId } = c.req.valid("json")
 
-				if (!userId) throw new HTTPException(403)
+				// Knowing a serial is not proof of ownership, so only admins can grant trust
+				if (!userId || permissions !== UserRole.Admin) throw new HTTPException(403)
 
 				// Find machine by serial
 				const [machines] = await db.execute<(DB.Machine & RowDataPacket)[]>("SELECT * FROM machine WHERE serial = ?", [

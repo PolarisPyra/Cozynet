@@ -25,6 +25,17 @@ const bindCard = async (connection: ExecutableConnection, table: CardTable, acce
 		)
 		if (users.length > 0) throw new HTTPException(409, { message: "Card already bound to another user" })
 
+		// The access code alone is not proof of ownership, so a card that has been played on stays with its player
+		const [played] = await connection.execute<RowDataPacket[]>(
+			`SELECT 1 FROM chuni_profile_data WHERE user = ?
+			 UNION ALL SELECT 1 FROM ongeki_profile_data WHERE user = ?
+			 UNION ALL SELECT 1 FROM mai2_profile_detail WHERE user = ?
+			 UNION ALL SELECT 1 FROM popn_playlog WHERE user_id = ?
+			 LIMIT 1`,
+			[card.user, card.user, card.user, card.user]
+		)
+		if (played.length > 0) throw new HTTPException(409, { message: "Card already bound to another user" })
+
 		await connection.execute<ResultSetHeader>(`UPDATE ${table} SET user = ? WHERE id = ?`, [userId, card.id])
 		return card.id
 	}
